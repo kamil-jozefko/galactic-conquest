@@ -1,22 +1,31 @@
 <template>
-  <div class="unit" v-if="unit" :class="{ selected: unit === selectedUnit }" @click="selectUnit">
+  <div
+    class="unit"
+    v-if="unit"
+    :class="{ selected: unit === selectedUnit }"
+    @click="selectUnit"
+    @dragstart="handleDragStart($event, unit)"
+    draggable="true"
+  >
     <div class="unit-info">
-      <div class="unit-name">{{ unit?.name }}</div>
+      <div class="unit-name">{{ unit.name }}</div>
       <div class="unit-stats">
         <div class="stat">
           <span class="stat-label">Health:</span>
-          <span class="stat-value">{{ unit?.health }}</span>
+          <span class="stat-value">{{ unit.health }}</span>
         </div>
         <div class="stat">
           <span class="stat-label">Attack:</span>
-          <span class="stat-value">{{ unit?.attack }}</span>
+          <span class="stat-value">{{ unit.attack }}</span>
         </div>
       </div>
     </div>
   </div>
 </template>
 
-<script lang="ts" setup>
+<script setup>
+import { defineProps, defineEmits } from 'vue'
+
 const props = defineProps({
   unit: {
     type: Object,
@@ -28,10 +37,15 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['selectUnit', 'moveUnit', 'dragstart'])
+
 const selectUnit = () => {
-  emit('select', props.unit)
+  emit('selectUnit', props.unit)
 }
-const emit = defineEmits(['select'])
+
+const handleDragStart = (event) => {
+  emit('dragstart', event, props.unit)
+}
 </script>
 
 <style lang="scss" scoped>
@@ -44,42 +58,55 @@ const emit = defineEmits(['select'])
   background-color: #ccc;
   border: 1px solid #aaa;
   cursor: pointer;
-}
+  transition: all 0.3s ease;
 
-.unit.selected {
-  border-color: #f00;
-}
+  &.selected {
+    border-color: #f00;
+  }
 
-.unit-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  color: #000;
-  font-size: 14px;
-}
+  &.dragging {
+    opacity: 0.5;
+  }
 
-.unit-name {
-  font-weight: bold;
-  margin-bottom: 5px;
-}
+  &.valid-drop {
+    border-color: #00ff00;
+  }
 
-.unit-stats {
-  display: flex;
-  flex-direction: column;
-}
+  &.invalid-drop {
+    border-color: #ff0000;
+  }
 
-.stat {
-  display: flex;
-  align-items: center;
-  margin-bottom: 3px;
-}
+  .unit-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #000;
+    font-size: 14px;
 
-.stat-label {
-  margin-right: 3px;
-  font-weight: bold;
-}
+    .unit-name {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
 
-.stat-value {
-  font-weight: normal;
+    .unit-stats {
+      display: flex;
+      flex-direction: column;
+
+      .stat {
+        display: flex;
+        align-items: center;
+        margin-bottom: 3px;
+
+        .stat-label {
+          margin-right: 3px;
+          font-weight: bold;
+        }
+
+        .stat-value {
+          font-weight: normal;
+        }
+      }
+    }
+  }
 }
 </style>

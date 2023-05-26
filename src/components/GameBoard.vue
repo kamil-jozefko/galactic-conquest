@@ -1,14 +1,16 @@
 <template>
   <div class="game-board">
-    <div class="board-row" v-for="row in rows" :key="row">
-      <div
-        class="board-cell"
-        v-for="col in cols"
-        :key="col"
-        @click="selectCell(row, col)"
-        :class="{ selected: isCellSelected(row, col) }"
-      >
-        <GameUnit :unit="getUnit(row, col)" :selectedUnit="selectedUnit" @select="selectUnit" />
+    <div v-for="row in rows" :key="row" class="board-row">
+      <div v-for="col in cols" :key="col" class="board-cell">
+        <div class="cell-container" @dragover="handleDragOver" @drop="handleDrop($event, row, col)">
+          <GameUnit
+            :unit="getUnit(row, col)"
+            :selectedUnit="selectedUnit"
+            @selectUnit="selectUnit"
+            @moveUnit="handleMoveUnit"
+            @dragstart="handleDragStart"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -26,36 +28,75 @@ const props = defineProps({
 })
 
 const units = ref(props.units)
-
 const rows = 8
 const cols = 8
-
 const selectedUnit = ref(null)
 const selectedCell = ref(null)
 
-const emit = defineEmits(['selectUnit'])
+const emit = defineEmits(['selectUnit', 'moveUnit'])
 
 const selectUnit = (unit) => {
-  if (unit) {
-    selectedUnit.value = unit
-    selectedCell.value = null
-  }
-}
-
-const selectCell = (row, col) => {
-  if (selectedUnit.value && isCellInRange(row, col)) {
-    moveUnit(selectedUnit.value, row, col)
-  } else {
-    selectedCell.value = { row, col }
-  }
-}
-
-const moveUnit = (unit, row, col) => {
-  unit.row = row
-  unit.col = col
-  selectedUnit.value = null
+  selectedUnit.value = unit
   selectedCell.value = null
-  emit('selectUnit', unit)
+}
+
+const handleMoveUnit = (newPosition) => {
+  if (selectedUnit.value && isValidMove(selectedUnit.value, newPosition)) {
+    selectedUnit.value = { ...selectedUnit.value, ...newPosition }
+  }
+}
+
+const handleDragOver = (event) => {
+  event.preventDefault()
+}
+
+const handleDragStart = (event, unit) => {
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('unit', JSON.stringify(unit))
+}
+
+const handleDrop = (event, row, col) => {
+  event.preventDefault()
+  const unitData = event.dataTransfer.getData('unit')
+  const unit = JSON.parse(unitData)
+  console.log(unit)
+  if (unit) {
+    moveUnit(unit, { row, col })
+  }
+}
+
+const moveUnit = (unit, newPosition) => {
+  if (isValidMove(unit, newPosition)) {
+    const { row, col } = newPosition
+    const index = units.value.findIndex((u) => u.id === unit.id);
+
+    console.log(index)
+    if (index !== -1) {
+      units.value.splice(index, 1) // Usuń jednostkę z obecnej pozycji
+      unit.row = row // Zaktualizuj wartość `row` jednostki
+      unit.col = col // Zaktualizuj wartość `col` jednostki
+      units.value.push(unit) // Dodaj jednostkę na nową pozycję
+      selectedUnit.value = unit // Zaktualizuj wybraną jednostkę, jeśli została przesunięta
+    }
+  }
+}
+
+const isValidMove = (unit, newPosition) => {
+  const { row, col } = newPosition
+
+  // Sprawdź, czy nowa pozycja jest zajęta przez inną jednostkę
+  const isOccupied = units.value.some((u) => u.row === row && u.col === col && u !== unit)
+  if (isOccupied) {
+    return false
+  }
+
+  // Sprawdź, czy nowa pozycja mieści się w zasięgu ruchu jednostki
+  const distance = Math.abs(row - unit.row) + Math.abs(col - unit.col)
+  if (distance > unit.moveRange) {
+    return false
+  }
+
+  return true
 }
 
 const getUnit = (row, col) => {
@@ -95,7 +136,16 @@ const computedUnits = computed(() => units.value)
   background-color: #ddd;
   padding: 10px;
   cursor: pointer;
-  border: 1px solid #888; /* Dodane obramowanie */
+  border: 1px solid #888;
+  width: 90px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.cell-container {
+  height: 100%;
+  width: 100%;
 }
 
 .board-cell.selected {
